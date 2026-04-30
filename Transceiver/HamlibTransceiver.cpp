@@ -20,19 +20,19 @@
 #define HAMLIB_CACHE_ALL CACHE_ALL
 #endif
 
-//#if HAVE_HAMLIB_PORT_H
+#if HAVE_HAMLIB_PORT_H
 #include <hamlib/port.h>
-//#endif
-//#if HAVE_HAMLIB_RIG_STATE_H
+#endif
+#if HAVE_HAMLIB_RIG_STATE_H
 #include <hamlib/rig_state.h>
-//#endif
+#endif
 
 /* Should only be needed to compile with Hamlib < 4.5 */
 #ifndef HAMLIB_STATE
-#  define HAMLIB_STATE(x) (&(x).data().state)
+#  define HAMLIB_STATE(x) (&((x).data().state))
 #endif
 #ifndef HAMLIB_PTTPORT
-#  define HAMLIB_PTTPORT(x) (&(x).data().state.pttport)
+#  define HAMLIB_PTTPORT(x) (&((x).data().state.pttport))
 #endif
 
 namespace
