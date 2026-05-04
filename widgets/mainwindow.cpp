@@ -466,8 +466,8 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
   m_onAirFreq0 {0.0},
   m_first_error {true},
   tx_status_label {tr ("Receiving")},
-  wsprNet {new WSPRNet {&m_network_manager, this}},
-  Eqsl {new EQSL {&m_network_manager, this}},
+  wsprNet {new WSPRNet {this}},
+  Eqsl {new EQSL {this}},
   m_baseCall {Radio::base_callsign (m_config.my_callsign ())},
   m_appDir {QApplication::applicationDirPath ()},
   m_cqStr {""},
@@ -551,7 +551,7 @@ MainWindow::MainWindow(QDir const& temp_directory, bool multiple,
         m_config.udp_server_name (), m_config.udp_server_port (),
         m_config.udp_interface_names (), m_config.udp_TTL (),
         this}},
-  m_psk_Reporter {&m_config, QString {"WSJT-X v" + version () + " i+"}.simplified ()},     // UR
+  m_psk_Reporter {&m_config, QString {"WSJT-X v" + version()}.simplified()},
   m_manual {&m_network_manager},
   m_block_udp_status_updates {false},
   m_useDarkStyle {false}
@@ -4425,7 +4425,7 @@ void MainWindow::setup_status_bar (bool vhf)
       band_hopping_label.setMinimumSize (QSize  {80, 18});
     }
   } else {
-    if (band_hopping_label.isVisible ()) statusBar ()->removeWidget (&band_hopping_label);
+    if (!m_config.PWR_and_SWR () && band_hopping_label.isVisible ()) statusBar ()->removeWidget (&band_hopping_label);
   }
 }
 
@@ -4688,8 +4688,8 @@ void MainWindow::on_actionCopyright_Notice_triggered()
                            "K1JT; Bill Somerville, G4WJS; Steven Franke, K9AN; Nico Palermo, "
                            "IV3NWV; Greg Beam, KI7MT; Michael Black, W9MDB; Edson Pereira, PY2SDR; "
                            "Philip Karn, KA9Q; Uwe Risse, DG2YCB; Brian Moran, N9ADG; Roger Rehr, "
-                           "W3SZ; John Nelson, G4KLA; Charlie Suckling, DL3WDG; and other members "
-                           "of the WSJT Development Group.\"");
+                           "W3SZ; John Nelson, G4KLA; Charlie Suckling, DL3WDG; Terrell Deppe, "
+                           "KJ5HST; and other members of the WSJT Development Group.\"");
   MessageBox::warning_message(this, message);
 }
 
@@ -10940,7 +10940,16 @@ void MainWindow::on_actionFT8_triggered()
   QTimer::singleShot (50, [=] {
     if(m_specOp!=SpecOp::FOX) ui->TxFreqSpinBox->setValue(m_settings->value("TxFreq_old",1500).toInt());
     if(m_specOp==SpecOp::FOX && !m_config.superFox()) ui->TxFreqSpinBox->setValue(m_TxFreqFox);
-    if(SpecOp::HOUND == m_specOp && m_config.superFox()) clearDX();
+    if(SpecOp::HOUND == m_specOp && m_config.superFox()) {
+      clearDX();
+      // Stale F/H decodes left in the Band Activity / Rx Frequency windows
+      // can be double-clicked to re-prime Tx against a callsign that is no
+      // longer valid in SuperFox/Hound (where the target comes from the
+      // Active Stations widget via the $VERIFY$ flow).  Erase them so the
+      // user-trap surface is gone.  Reported by AF8C, 2026-05-03.
+      ui->decodedTextBrowser->erase ();
+      ui->decodedTextBrowser2->erase ();
+    }
     on_sbSubmode_valueChanged(ui->sbSubmode->value());
     ui->cbHoldTxFreq->setChecked (HoldTxFreqStatus);
   });
@@ -12419,7 +12428,7 @@ void MainWindow::handle_transceiver_update (Transceiver::TransceiverState const&
   // Display PWR and SWR
   if(m_config.PWR_and_SWR()) {
     if (!band_hopping_label.isVisible ()) {
-      statusBar ()->addWidget (&band_hopping_label);
+      statusBar ()->addPermanentWidget (&band_hopping_label);
       band_hopping_label.setMinimumSize (QSize  {80, 18});
       band_hopping_label.show();
     }
